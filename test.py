@@ -1,24 +1,24 @@
-from models import TestModel
+# from models import TestModel
 
 # base = ORMBase()
-test = TestModel()
+# test = TestModel()
 # print(test.objects.table_name)
 # test.objects.create_table()
 
-name_list = [
-    {"name":"rkp_normal-01"},
-    {"name":"bkt_normal-02"},
-    {"name":"rkp_normal-03"},
-    {"name":"rkp_normal-04"},
-    {"name":"rkp_normal-05"},
-    {"name":"rkp_normal-06"}
-    ]
+# name_list = [
+#     {"name":"rkp_normal-01"},
+#     {"name":"bkt_normal-02"},
+#     {"name":"rkp_normal-03"},
+#     {"name":"rkp_normal-04"},
+#     {"name":"rkp_normal-05"},
+#     {"name":"rkp_normal-06"}
+#     ]
 
-"""
-NORMAL
-"""
-for count,data in enumerate(name_list):
-    test.objects.create(**data)
+# """
+# NORMAL
+# """
+# for count,data in enumerate(name_list):
+#     test.objects.create(**data)
 
 # """
 # WITH TRANSACTION
@@ -54,4 +54,3 @@ for count,data in enumerate(name_list):
 #     obj = Manager()
 
 #     print(BaseModel())
-

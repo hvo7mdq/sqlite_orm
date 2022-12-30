@@ -1,5 +1,8 @@
+"""
+@ARTHUR:rkp
+"""
 import sqlite3
-from sqlite_orm.base.variables import variables
+from sqliteorm.variables import variables
 
 
 class SqliteClient():
