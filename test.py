@@ -17,8 +17,6 @@ class TestModel(ORMBase):
 
     def __init__(self) -> None:
         super().__init__()
-        # self.db = SqliteBackend().get_db
-        # self.table_name = "rkp_test_table"
 
     
 

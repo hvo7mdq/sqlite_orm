@@ -8,9 +8,6 @@ from sqliteorm.orm_exceptions import MultipleValueReturn
 
 class ORMMETABase(type):
     def __new__(cls, name, bases, attrs):
-        # for base in bases:
-        #     base.db = attrs.get('db')
-            
         objects = attrs.get('objects')
         db = attrs.get('db')
         table_name = attrs.get('table_name')
@@ -47,7 +44,8 @@ class Atomic():
         try:
             self.cursor.execute("commit")
         except Exception as e:
-            pass
+            raise Exception(e)
+
         self.cursor.close()
 
 class ModelManagerBase():
@@ -59,10 +57,11 @@ class ModelManagerBase():
 
     def check_conn(self):
         # check_cursor
-        if self.db:
-            self.cursor = self.db().conn.cursor()
-        else:
-            self.cursor = self.db().conn.cursor()
+        if not self.cursor:
+            if self.db:
+                self.cursor = self.db().conn.cursor()
+            else:
+                raise Exception('DB not set in Manager')
 
     @staticmethod
     def decode_row_object(obj):
@@ -106,12 +105,6 @@ class ModelManagerBase():
                 query += f"AND {key}= '{value}' "
             counter += 1
 
-        # check_cursor
-        if self.db:
-            self.cursor = self.db.conn.cursor()
-        else:
-            self.cursor = self.db().conn.cursor()
-
         selector = self.cursor.execute(query)
         result = selector.fetchall()
 
@@ -137,12 +130,6 @@ class ModelManagerBase():
             else:
                 query += f"AND {key}= '{value}' "
             counter += 1
-
-        # check_cursor
-        if self.db:
-            self.cursor = self.db.conn.cursor()
-        else:
-            self.cursor = self.db().conn.cursor()
 
         selector = self.cursor.execute(query)
         result = selector.fetchall()
@@ -210,36 +197,28 @@ class ModelManagerBase():
 
 
 class ORMBase(metaclass=ORMMETABase):
-# class ORMBase():
     def __init__(
         self,
-        # table_name=None,#pass from base class
-        # db = None,
-        # cursor = None, #set when call is invoked
+        cursor = None, #set when call is invoked
         is_atomic=False,
         ) -> None:
-
-        # self.table_name = table_name
-        # self.db = db
-        # self.cursor = cursor
+        self.cursor = cursor
         self.is_atomic = is_atomic
 
     def check_conn(self):
         # check_cursor
-        if self.db:
-            self.cursor = self.db().conn.cursor()
-        else:
-            self.cursor = self.db().conn.cursor()
+        if not self.cursor:
+            if self.db:
+                self.cursor = self.db().conn.cursor()
+            else:
+                raise Exception('DB not set in ORMBase')
+
 
     def atomic(self,**kwargs):
         self.check_conn()
         self.is_atomic = True
-        if self.db:
-            self.cursor = self.db.conn.cursor()
-        else:
-            self.cursor = self.db().conn.cursor()
-
         self.objects.is_atomic = True
+        self.objects.cursor = self.cursor
         return Atomic(cursor=self.cursor)
 
     def rollback(self):
