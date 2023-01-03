@@ -13,7 +13,7 @@ class SqliteBackendBase():
 
     @property
     def get_db(self):
-        if not self.db_path:
+        if self.db_path:
             db = SqliteClient(db_path=self.db_path,conn=None)
         else:
             db = sqlite

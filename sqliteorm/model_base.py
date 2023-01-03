@@ -8,14 +8,17 @@ from sqliteorm.orm_exceptions import MultipleValueReturn
 
 class ORMMETABase(type):
     def __new__(cls, name, bases, attrs):
+        # for base in bases:
+        #     base.db = attrs.get('db')
+            
         objects = attrs.get('objects')
+        db = attrs.get('db')
         table_name = attrs.get('table_name')
         if not objects:
             objects = ModelManagerBase()
-        objects.table_name = table_name
-        objects.db = sqlite()
-        objects.cursor = objects.db.conn.cursor() 
 
+        objects.table_name = table_name
+        objects.db = db
         attrs['objects'] = objects
         super_new = super().__new__(cls, name, bases, attrs)
         return super_new
@@ -54,6 +57,13 @@ class ModelManagerBase():
         self.table_name = None
         self.is_atomic = False
 
+    def check_conn(self):
+        # check_cursor
+        if self.db:
+            self.cursor = self.db().conn.cursor()
+        else:
+            self.cursor = self.db().conn.cursor()
+
     @staticmethod
     def decode_row_object(obj):
         data = None
@@ -74,6 +84,8 @@ class ModelManagerBase():
         return data
 
     def all(self,**kwargs):
+        self.check_conn()
+
         query = f"SELECT * FROM {self.table_name}"
         selector = self.cursor.execute(query)
         result = selector.fetchall()
@@ -84,6 +96,7 @@ class ModelManagerBase():
         return data
 
     def get(self,**kwargs):
+        self.check_conn()
         query = f"SELECT * FROM {self.table_name} WHERE "
         counter = 1
         for key,value in kwargs.items():
@@ -92,6 +105,12 @@ class ModelManagerBase():
             else:
                 query += f"AND {key}= '{value}' "
             counter += 1
+
+        # check_cursor
+        if self.db:
+            self.cursor = self.db.conn.cursor()
+        else:
+            self.cursor = self.db().conn.cursor()
 
         selector = self.cursor.execute(query)
         result = selector.fetchall()
@@ -109,6 +128,7 @@ class ModelManagerBase():
         return self
     
     def filter(self, **kwargs):
+        self.check_conn()
         query = f"SELECT * FROM {self.table_name} WHERE "
         counter = 1
         for key,value in kwargs.items():
@@ -117,6 +137,12 @@ class ModelManagerBase():
             else:
                 query += f"AND {key}= '{value}' "
             counter += 1
+
+        # check_cursor
+        if self.db:
+            self.cursor = self.db.conn.cursor()
+        else:
+            self.cursor = self.db().conn.cursor()
 
         selector = self.cursor.execute(query)
         result = selector.fetchall()
@@ -144,6 +170,7 @@ class ModelManagerBase():
 
 
     def create(self,**kwargs):
+        self.check_conn()
         # RecursiveIndexModel(**kwargs)
         query = f"INSERT INTO {self.table_name} "
         keys,values = self.get_key_value(kwargs)
@@ -159,8 +186,8 @@ class ModelManagerBase():
         return self
 
     def update(self,**kwargs):
+        self.check_conn()
         query = f"UPDATE {self.table_name} SET "
-
         counter = 1
         for key, value in kwargs.items():
             if counter == 1:
@@ -183,27 +210,40 @@ class ModelManagerBase():
 
 
 class ORMBase(metaclass=ORMMETABase):
-
+# class ORMBase():
     def __init__(
         self,
-        table_name=None,#pass from base class
-        db = sqlite(),
-        cursor = None, #set when call is invoked
+        # table_name=None,#pass from base class
+        # db = None,
+        # cursor = None, #set when call is invoked
         is_atomic=False,
         ) -> None:
 
-        self.table_name = table_name
-        self.db = db
-        self.cursor = cursor
+        # self.table_name = table_name
+        # self.db = db
+        # self.cursor = cursor
         self.is_atomic = is_atomic
 
+    def check_conn(self):
+        # check_cursor
+        if self.db:
+            self.cursor = self.db().conn.cursor()
+        else:
+            self.cursor = self.db().conn.cursor()
+
     def atomic(self,**kwargs):
+        self.check_conn()
         self.is_atomic = True
-        self.cursor = self.db.conn.cursor()
+        if self.db:
+            self.cursor = self.db.conn.cursor()
+        else:
+            self.cursor = self.db().conn.cursor()
+
         self.objects.is_atomic = True
         return Atomic(cursor=self.cursor)
 
     def rollback(self):
+        self.check_conn()
         try:
             self.cursor.execute("rollback")
         except Exception as e:
