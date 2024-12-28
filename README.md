@@ -1,10 +1,19 @@
-from models import TestModel
+## Basic ORM for sqlite database specially designed for RPA based tools
 
-# base = ORMBase()
-test = TestModel()
-# print(test.objects.table_name)
-# test.objects.create_table()
+## Usage example
+```py
+from sqliteorm.model_base import ORMBase
 
+class TestModel(ORMBase):
+    table_name = "users"
+
+# create object of model
+tets = TestModel()
+# create table
+tets.create_table()
+
+
+# bulk insersion normal mode
 name_list = [
     {"name":"rkp_normal-01"},
     {"name":"bkt_normal-02"},
@@ -12,46 +21,24 @@ name_list = [
     {"name":"rkp_normal-04"},
     {"name":"rkp_normal-05"},
     {"name":"rkp_normal-06"}
-    ]
+]
 
-"""
-NORMAL
-"""
 for count,data in enumerate(name_list):
     test.objects.create(**data)
 
-# """
-# WITH TRANSACTION
-# """
-# try:
-#     with test.atomic():
-#         for count,data in enumerate(name_list):
-#             print(data)
-#             test.objects.create(**data)
-# except Exception as e:
-#     print(e)
-#     test.rollback()
+# bulk insersion with transaction
+try:
+    with test.atomic():
+        for count,data in enumerate(name_list):
+            test.objects.create(**data)
+except Exception as e:
+    test.rollback()
 
+### Other available options
+# test.all()
+# test.get({"name": "roshan", "email": "rkp@gmail.com"})
+# test.filter({"name": "roshan", "email": "rkp@gmail.com"})
+# test.update({"name": "roshan", "email": "rkp@gmail.com"})
+```
 
-
-# class BaseMeta(type):
-#     def __new__(cls, name, bases, attrs):
-#     obj = attrs.get('obj')
-#     obj.model = 'New'
-#     return super().__new__(cls, name, bases, attrs)
-
-# class Manager():
-
-#     def __init__(self,model) -> None:
-#         self.model=model
-#         print("from meta+++")
-#         print("printed model in set from meta", self.model)
-
-
-# class BaseModel(metaclass=BaseMeta):
-#     def __init__(self) -> None:
-#         print("init in base model")
-#     obj = Manager()
-
-#     print(BaseModel())
-
+## Inspired by Django ORM

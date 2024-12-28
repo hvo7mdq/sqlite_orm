@@ -3,20 +3,24 @@
 """
 
 import sqlite3
-from sqliteorm.sqlite_base import sqlite
 from sqliteorm.orm_exceptions import MultipleValueReturn
+from sqliteorm.sqlite_backend import SqliteBackendBase
+from sqliteorm.orm_exceptions import TableCreationError
+
 
 class ORMMETABase(type):
     def __new__(cls, name, bases, attrs):
         objects = attrs.get('objects')
         db = attrs.get('db')
+        if not db:
+            db = SqliteBackendBase('sqlite.db').get_db()
         table_name = attrs.get('table_name')
         if not objects:
             objects = ModelManagerBase()
-
         objects.table_name = table_name
         objects.db = db
         attrs['objects'] = objects
+        attrs['db'] = db
         super_new = super().__new__(cls, name, bases, attrs)
         return super_new
 
@@ -28,18 +32,19 @@ class Atomic():
     with dbModel.atomic():
         //do stuff
     """
-    
-    def __init__(self,cursor) -> None:
+
+    def __init__(self, cursor) -> None:
         self.cursor = cursor
 
     def __enter__(self):
-       print("inside __enter__")
+        print("inside __enter__")
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type:
             try:
                 self.cursor.execute('rollback')
             except Exception as e:
+                print(e)
                 pass
         try:
             self.cursor.execute("commit")
@@ -47,6 +52,7 @@ class Atomic():
             raise Exception(e)
 
         self.cursor.close()
+
 
 class ModelManagerBase():
     def __init__(self) -> None:
@@ -82,7 +88,7 @@ class ModelManagerBase():
                 data.append(data_dict)
         return data
 
-    def all(self,**kwargs):
+    def all(self, **kwargs):
         self.check_conn()
 
         query = f"SELECT * FROM {self.table_name}"
@@ -94,11 +100,11 @@ class ModelManagerBase():
         self.id = None
         return data
 
-    def get(self,**kwargs):
+    def get(self, **kwargs):
         self.check_conn()
         query = f"SELECT * FROM {self.table_name} WHERE "
         counter = 1
-        for key,value in kwargs.items():
+        for key, value in kwargs.items():
             if counter == 1:
                 query += f"{key}= '{value}' "
             else:
@@ -119,12 +125,12 @@ class ModelManagerBase():
         # set instance
         self.instance = data
         return self
-    
+
     def filter(self, **kwargs):
         self.check_conn()
         query = f"SELECT * FROM {self.table_name} WHERE "
         counter = 1
-        for key,value in kwargs.items():
+        for key, value in kwargs.items():
             if counter == 1:
                 query += f"{key}= '{value}' "
             else:
@@ -151,16 +157,13 @@ class ModelManagerBase():
             else:
                 keys += f',{key}'
                 values += f",'{value}'"
-            counter +=1
-        return keys,values
+            counter += 1
+        return keys, values
 
-
-
-    def create(self,**kwargs):
+    def create(self, **kwargs):
         self.check_conn()
-        # RecursiveIndexModel(**kwargs)
         query = f"INSERT INTO {self.table_name} "
-        keys,values = self.get_key_value(kwargs)
+        keys, values = self.get_key_value(kwargs)
         query += f"({keys}) VALUES ({values})"
         selector = self.cursor.execute(query)
 
@@ -168,11 +171,11 @@ class ModelManagerBase():
             id = selector.lastrowid
             self.db.conn.commit()
             data = self.get(id=id)
-            #set instance
+            # set instance
             self.instance = data
         return self
 
-    def update(self,**kwargs):
+    def update(self, **kwargs):
         self.check_conn()
         query = f"UPDATE {self.table_name} SET "
         counter = 1
@@ -187,7 +190,7 @@ class ModelManagerBase():
         instance_id = self.instance.get('id')
         query += f" WHERE id = {instance_id}"
 
-        selector = self.cursor.execute(query)
+        self.cursor.execute(query)
         self.db.conn.commit()
 
         # set instance
@@ -199,9 +202,10 @@ class ModelManagerBase():
 class ORMBase(metaclass=ORMMETABase):
     def __init__(
         self,
-        cursor = None, #set when call is invoked
+        # set when call is invoked
+        cursor=None,
         is_atomic=False,
-        ) -> None:
+    ) -> None:
         self.cursor = cursor
         self.is_atomic = is_atomic
 
@@ -213,8 +217,31 @@ class ORMBase(metaclass=ORMMETABase):
             else:
                 raise Exception('DB not set in ORMBase')
 
+    def create_table(self):
 
-    def atomic(self,**kwargs):
+        self.check_conn()
+
+        table_exists = self.check_if_table_exists()
+        if not table_exists:
+            try:
+                # IF NOT EXISTS: creates table if doesnot exist
+                # else table creation will ignored
+                query = f"CREATE TABLE IF NOT EXISTS {self.table_name}(\
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,\
+                    name CHAR(100),\
+                    created_at CHAR(100) NULL,\
+                    updated_at CHAR(100) NULL\
+                        )"
+                query_status = self.cursor.execute(query)
+            except Exception as e:
+                print(e)
+                raise TableCreationError(e)
+
+        else:
+            query_status = None
+        return query_status
+
+    def atomic(self, **kwargs):
         self.check_conn()
         self.is_atomic = True
         self.objects.is_atomic = True
@@ -226,6 +253,7 @@ class ORMBase(metaclass=ORMMETABase):
         try:
             self.cursor.execute("rollback")
         except Exception as e:
+            print(e)
             pass
 
     def check_if_table_exists(self):
